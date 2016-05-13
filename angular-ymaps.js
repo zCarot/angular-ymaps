@@ -114,91 +114,110 @@ angular.module('ymaps', [])
 
         var self = this;
         ymapsLoader.ready(function (ymaps) {
-            self.addMarker = function (coordinates, properties, options) {
-                var placeMark = new ymaps.Placemark(coordinates, properties, options);
-                $scope.markers.add(placeMark);
+                self.addMarker = function (coordinates, properties, options) {
+                    var placeMark = new ymaps.Placemark(coordinates, properties, options);
+                    $scope.markers.add(placeMark);
 
-                return placeMark;
-            };
-            self.removeMarker = function (marker) {
-                $scope.markers.remove(marker);
-            };
-            self.map = new ymaps.Map($element[0], {
-                center: $scope.center || [0, 0],
-                zoom: $scope.zoom || 0,
-                behaviors: config.mapBehaviors
-            });
+                    return placeMark;
+                };
 
-            if (angular.isObject($scope.mapOptions)) {
-                angular.forEach($scope.mapOptions, function (v, k) {
-                    self.map.options.set(k, v);
+                self.removeMarker = function (marker) {
+                    $scope.markers.remove(marker);
+                };
+
+                self.addPolygon = function (coordinates, properties, options, type) {
+                    var polygon;
+                    switch (type) {
+                        case "Polyline":
+                            polygon = new ymaps.Polyline(coordinates, properties, options);
+                            break;
+                        default:
+                            polygon = new ymaps.Polygon(coordinates, properties, options);
+                            break;
+                    }
+
+
+                    $scope.markers.add(polygon);
+                    return polygon;
+                };
+
+                self.map = new ymaps.Map($element[0], {
+                    center: $scope.center || [0, 0],
+                    zoom: $scope.zoom || 0,
+                    behaviors: config.mapBehaviors
                 });
-            }
 
-            if (angular.isArray($scope.disableControls)) {
-                for (var i = 0; i < $scope.disableControls.length; i++) {
-                    self.map.controls.remove($scope.disableControls[i]);
+                if (angular.isObject($scope.mapOptions)) {
+                    angular.forEach($scope.mapOptions, function (v, k) {
+                        self.map.options.set(k, v);
+                    });
                 }
-            }
 
-            //console.log($scope.enableControls);
-            if (angular.isArray($scope.enableControls)) {
-                for (var i = 0; i < $scope.enableControls.length; i++) {
-                    //self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1]);
-                    self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1] || {});
+                if (angular.isArray($scope.disableControls)) {
+                    for (var i = 0; i < $scope.disableControls.length; i++) {
+                        self.map.controls.remove($scope.disableControls[i]);
+                    }
                 }
-            }
 
-
-            var collection = new ymaps.GeoObjectCollection({}, config.markerOptions);
-            if (config.clusterize) {
-                $scope.markers = new ymaps.Clusterer(config.clusterOptions);
-                collection.add($scope.markers);
-            } else {
-                $scope.markers = collection;
-            }
-
-            self.map.geoObjects.add(collection);
-            if (config.fitMarkers) {
-                initAutoFit(self.map, collection, ymaps);
-            }
-            var updatingBounds, moving;
-            $scope.$watch('center', function (newVal) {
-                if (updatingBounds) {
-                    return;
+                if (angular.isArray($scope.enableControls)) {
+                    for (var i = 0; i < $scope.enableControls.length; i++) {
+                        //self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1]);
+                        self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1] || {});
+                    }
                 }
-                moving = true;
-                self.map.panTo(newVal).always(function () {
-                    moving = false;
+
+                var collection = new ymaps.GeoObjectCollection({}, config.markerOptions);
+                if (config.clusterize) {
+                    $scope.markers = new ymaps.Clusterer(config.clusterOptions);
+                    collection.add($scope.markers);
+                } else {
+                    $scope.markers = collection;
+                }
+
+                self.map.geoObjects.add(collection);
+
+                if (config.fitMarkers) {
+                    initAutoFit(self.map, collection, ymaps);
+                }
+
+                var updatingBounds, moving;
+                $scope.$watch('center', function (newVal) {
+                    if (updatingBounds) {
+                        return;
+                    }
+                    moving = true;
+                    self.map.panTo(newVal).always(function () {
+                        moving = false;
+                    });
+                }, true);
+                $scope.$watch('zoom', function (zoom) {
+                    if (updatingBounds) {
+                        return;
+                    }
+                    self.map.setZoom(zoom, {checkZoomRange: true});
                 });
-            }, true);
-            $scope.$watch('zoom', function (zoom) {
-                if (updatingBounds) {
-                    return;
-                }
-                self.map.setZoom(zoom, {checkZoomRange: true});
-            });
 
-            $scope.$on('$destroy', function () {
-                if (self.map) {
-                    self.map.destroy();
-                }
-            });
-
-            self.map.events.add('boundschange', function (event) {
-                if (moving) {
-                    return;
-                }
-                //noinspection JSUnusedAssignment
-                updatingBounds = true;
-                $scope.$apply(function () {
-                    $scope.center = event.get('newCenter');
-                    $scope.zoom = event.get('newZoom');
+                $scope.$on('$destroy', function () {
+                    if (self.map) {
+                        self.map.destroy();
+                    }
                 });
-                updatingBounds = false;
-            });
 
-        });
+                self.map.events.add('boundschange', function (event) {
+                    if (moving) {
+                        return;
+                    }
+                    //noinspection JSUnusedAssignment
+                    updatingBounds = true;
+                    $scope.$apply(function () {
+                        $scope.center = event.get('newCenter');
+                        $scope.zoom = event.get('newZoom');
+                    });
+                    updatingBounds = false;
+                });
+
+            }
+        );
     }])
     .directive('yandexMap', ['ymapsLoader', function (ymapsLoader) {
         "use strict";
@@ -266,41 +285,79 @@ angular.module('ymaps', [])
             }
         };
     })
-    .directive('ymapRoute', [function () {
-    "use strict";
-    return {
-        restrict: "EA",
-        require: '^yandexMap',
-        scope: {
-            points: '='
-        },
-        link: function ($scope, elm, attr, mapCtrl) {
-            $scope.route = null;
+    .directive('ymapPolygon', function () {
+        "use strict";
+        return {
+            restrict: "EA",
+            require: '^yandexMap',
+            scope: {
+                coordinates: '=',
+                properties: '=',
+                options: '=',
+                type: '@'
+            },
+            link: function ($scope, elm, attr, mapCtrl) {
+                var polygon;
 
-            $scope.$watch(
-                function () {
-                    return $scope.points;
-                },
-                function (newVal) {
-                    if (angular.isDefined(newVal.from) && angular.isDefined(newVal.to)) {
-                        ymaps.route([newVal.from.point, newVal.to.point]).then(function (route) {
-                            $scope.route = route;
-                            mapCtrl.map.geoObjects.add(route);
-                            var points = route.getWayPoints(), lastPoint = points.getLength() - 1;
-                            points.options.set('preset', 'twirl#blueStretchyIcon');
-
-                        }, function (error) {
-                            alert('Ошибка построения маршрута');
-                        });
-                    } else {
-                        if (null !== $scope.route) {
-                            mapCtrl.map.geoObjects.remove($scope.route);
-                            $scope.route = null;
-                        }
+                function pickPolygon() {
+                    if (polygon) {
+                        mapCtrl.removeMarker(polygon);
                     }
-                },
-                true
-            );
+                    polygon = mapCtrl.addPolygon($scope.coordinates, $scope.properties || {}, $scope.options || {}, $scope.type);
+                }
+
+                //if (angular.isArray($scope.coordinates)) {
+                //    polygon = mapCtrl.addPolygon($scope.coordinates, $scope.properties, $scope.options, $scope.type);
+                //}
+
+                $scope.$watch("coordinates", function (newVal) {
+                    if (newVal) {
+                        pickPolygon();
+                    }
+                }, true);
+
+                $scope.$on('$destroy', function () {
+                    if (polygon) {
+                        mapCtrl.removeMarker(polygon);
+                    }
+                });
+            }
+        };
+    })
+    .directive('ymapRoute', [function () {
+        "use strict";
+        return {
+            restrict: "EA",
+            require: '^yandexMap',
+            scope: {
+                points: '='
+            },
+            link: function ($scope, elm, attr, mapCtrl) {
+                $scope.route = null;
+
+                $scope.$watch(
+                    function () {
+                        return $scope.points;
+                    },
+                    function (newVal) {
+                        if (angular.isDefined(newVal.from) && angular.isDefined(newVal.to)) {
+                            ymaps.route([newVal.from.point, newVal.to.point]).then(function (route) {
+                                $scope.route = route;
+                                mapCtrl.map.geoObjects.add(route);
+                                var points = route.getWayPoints(), lastPoint = points.getLength() - 1;
+                                points.options.set('preset', 'twirl#blueStretchyIcon');
+                            }, function (error) {
+                                alert('Ошибка построения маршрута');
+                            });
+                        } else {
+                            if (null !== $scope.route) {
+                                mapCtrl.map.geoObjects.remove($scope.route);
+                                $scope.route = null;
+                            }
+                        }
+                    },
+                    true
+                );
+            }
         }
-    }
-}]);
+    }]);
