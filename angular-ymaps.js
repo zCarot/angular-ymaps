@@ -335,12 +335,9 @@ angular.module('ymaps', [])
             link: function ($scope, elm, attr, mapCtrl) {
                 $scope.route = null;
 
-                $scope.$watch(
-                    function () {
-                        return $scope.points;
-                    },
+                $scope.$watch('points',
                     function (newVal) {
-                        if (angular.isDefined(newVal.from) && angular.isDefined(newVal.to)) {
+                        if (newVal && angular.isDefined(newVal.from) && angular.isDefined(newVal.from.point) && angular.isDefined(newVal.to) && angular.isDefined(newVal.to.point)) {
                             ymaps.route([newVal.from.point, newVal.to.point]).then(function (route) {
                                 $scope.route = route;
                                 mapCtrl.map.geoObjects.add(route);
