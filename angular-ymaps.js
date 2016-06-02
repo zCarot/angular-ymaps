@@ -100,14 +100,17 @@ angular.module('ymaps', [])
                 if (collection.getLength() > 0) {
                     var maxZoomBefore = map.options.get('maxZoom');
                     map.options.set('maxZoom', $scope.zoom);
-                    map.setBounds(collection.getBounds(), {
-                        checkZoomRange: true,
-                        zoomMargin: config.fitMarkersZoomMargin
-                    }).then(function () {
-                        map.options.set('maxZoom', maxZoomBefore);
-                        //we need to manually update zoom, because of http://clubs.ya.ru/mapsapi/replies.xml?item_no=59735
-                        map.setZoom(map.getZoom());
-                    });
+                    var bounds = collection.getBounds();
+                    if (null !== bounds) {
+                        map.setBounds(bounds, {
+                            checkZoomRange: true,
+                            zoomMargin: config.fitMarkersZoomMargin
+                        }).then(function () {
+                            map.options.set('maxZoom', maxZoomBefore);
+                            //we need to manually update zoom, because of http://clubs.ya.ru/mapsapi/replies.xml?item_no=59735
+                            map.setZoom(map.getZoom());
+                        });
+                    }
                 }
             }, 100));
         }
@@ -116,13 +119,30 @@ angular.module('ymaps', [])
         ymapsLoader.ready(function (ymaps) {
                 self.addMarker = function (coordinates, properties, options) {
                     var placeMark = new ymaps.Placemark(coordinates, properties, options);
-                    $scope.markers.add(placeMark);
+
+                    if (config.clusterize) {
+                        if (!angular.isDefined(properties.clusterize) || (properties.clusterize && true == properties.clusterize)) {
+                            $scope.clusterMarkers.add(placeMark);
+                        } else {
+                            $scope.markers.add(placeMark);
+                        }
+                    } else {
+                        $scope.markers.add(placeMark);
+                    }
 
                     return placeMark;
                 };
 
                 self.removeMarker = function (marker) {
-                    $scope.markers.remove(marker);
+                    if (config.clusterize) {
+                        if (!angular.isDefined(marker.properties.get('clusterize')) && (marker.properties.get('clusterize') && true == marker.properties.get('clusterize'))) {
+                            $scope.clusterMarkers.remove(marker);
+                        } else {
+                            $scope.markers.remove(marker);
+                        }
+                    } else {
+                        $scope.markers.remove(marker);
+                    }
                 };
 
                 self.addPolygon = function (coordinates, properties, options, type) {
@@ -161,15 +181,15 @@ angular.module('ymaps', [])
 
                 if (angular.isArray($scope.enableControls)) {
                     for (var i = 0; i < $scope.enableControls.length; i++) {
-                        //self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1]);
                         self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1] || {});
                     }
                 }
 
                 var collection = new ymaps.GeoObjectCollection({}, config.markerOptions);
                 if (config.clusterize) {
-                    $scope.markers = new ymaps.Clusterer(config.clusterOptions);
-                    collection.add($scope.markers);
+                    $scope.clusterMarkers = new ymaps.Clusterer(config.clusterOptions);
+                    collection.add($scope.clusterMarkers);
+                    $scope.markers = collection;
                 } else {
                     $scope.markers = collection;
                 }
@@ -264,7 +284,7 @@ angular.module('ymaps', [])
                     if (marker) {
                         mapCtrl.removeMarker(marker);
                     }
-                    marker = mapCtrl.addMarker(coord, angular.extend({iconContent: $scope.index}, $scope.properties), $scope.options);
+                    marker = mapCtrl.addMarker(coord, angular.extend({iconContent: $scope.index}, $scope.properties), $scope.options, $scope.clusterize);
                 }
 
                 $scope.$watch("index", function (newVal) {
