@@ -135,7 +135,7 @@ angular.module('ymaps', [])
 
                 self.removeMarker = function (marker) {
                     if (config.clusterize) {
-                        if (!angular.isDefined(marker.properties.get('clusterize')) && (marker.properties.get('clusterize') && true == marker.properties.get('clusterize'))) {
+                        if (!angular.isDefined(marker.properties.get('clusterize')) || (marker.properties.get('clusterize') && true == marker.properties.get('clusterize'))) {
                             $scope.clusterMarkers.remove(marker);
                         } else {
                             $scope.markers.remove(marker);
