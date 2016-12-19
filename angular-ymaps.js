@@ -77,7 +77,15 @@ angular.module('ymaps', [])
         fitMarkers: true,
         fitMarkersZoomMargin: 40,
         //autoFitToViewport: false,
-        clusterize: false
+        clusterize: false,
+        eventPrefixInDirective: 'ymap'
+    })
+    .constant('EVENTS', {
+        source: {
+            yandex: {
+                new: 'new-event'
+            }
+        }
     })
     //brought from underscore http://underscorejs.org/#debounce
     .value('debounce', function (func, wait) {
@@ -93,7 +101,7 @@ angular.module('ymaps', [])
             timeout = setTimeout(later, wait);
         };
     })
-    .controller('YmapController', ['$scope', '$element', 'ymapsLoader', 'ymapsConfig', 'debounce', function ($scope, $element, ymapsLoader, config, debounce) {
+    .controller('YmapController', ['$scope', '$element', 'ymapsLoader', 'ymapsConfig', 'debounce', '$rootScope', 'EVENTS', function ($scope, $element, ymapsLoader, config, debounce, $rootScope, EVENTS) {
         "use strict";
         function initAutoFit(map, collection, ymaps) {
             collection.events.add('boundschange', debounce(function () {
@@ -117,129 +125,138 @@ angular.module('ymaps', [])
 
         var self = this;
         ymapsLoader.ready(function (ymaps) {
-                self.addMarker = function (coordinates, properties, options) {
-                    var placeMark = new ymaps.Placemark(coordinates, properties, options);
 
-                    if (config.clusterize) {
-                        if (!angular.isDefined(properties.clusterize) || (properties.clusterize && true == properties.clusterize)) {
-                            $scope.clusterMarkers.add(placeMark);
-                        } else {
-                            $scope.markers.add(placeMark);
-                        }
+            self.addMarker = function (coordinates, properties, options) {
+                var placeMark = new ymaps.Placemark(coordinates, properties, options);
+
+                if (config.clusterize) {
+                    if (!angular.isDefined(properties.clusterize) || (properties.clusterize && true == properties.clusterize)) {
+                        $scope.clusterMarkers.add(placeMark);
                     } else {
                         $scope.markers.add(placeMark);
                     }
+                } else {
+                    $scope.markers.add(placeMark);
+                }
 
-                    return placeMark;
-                };
+                return placeMark;
+            };
 
-                self.removeMarker = function (marker) {
-                    if (config.clusterize) {
-                        if (!angular.isDefined(marker.properties.get('clusterize')) || (marker.properties.get('clusterize') && true == marker.properties.get('clusterize'))) {
-                            $scope.clusterMarkers.remove(marker);
-                        } else {
-                            $scope.markers.remove(marker);
-                        }
+            self.removeMarker = function (marker) {
+                if (config.clusterize) {
+                    if (!angular.isDefined(marker.properties.get('clusterize')) || (marker.properties.get('clusterize') && true == marker.properties.get('clusterize'))) {
+                        $scope.clusterMarkers.remove(marker);
                     } else {
                         $scope.markers.remove(marker);
                     }
-                };
-
-                self.addPolygon = function (coordinates, properties, options, type) {
-                    var polygon;
-                    switch (type) {
-                        case "Polyline":
-                            polygon = new ymaps.Polyline(coordinates, properties, options);
-                            break;
-                        default:
-                            polygon = new ymaps.Polygon(coordinates, properties, options);
-                            break;
-                    }
-
-
-                    $scope.markers.add(polygon);
-                    return polygon;
-                };
-
-                self.map = new ymaps.Map($element[0], {
-                    center: $scope.center || [0, 0],
-                    zoom: $scope.zoom || 0,
-                    behaviors: config.mapBehaviors
-                });
-
-                if (angular.isObject($scope.mapOptions)) {
-                    angular.forEach($scope.mapOptions, function (v, k) {
-                        self.map.options.set(k, v);
-                    });
-                }
-
-                if (angular.isArray($scope.disableControls)) {
-                    for (var i = 0; i < $scope.disableControls.length; i++) {
-                        self.map.controls.remove($scope.disableControls[i]);
-                    }
-                }
-
-                if (angular.isArray($scope.enableControls)) {
-                    for (var i = 0; i < $scope.enableControls.length; i++) {
-                        self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1] || {});
-                    }
-                }
-
-                var collection = new ymaps.GeoObjectCollection({}, config.markerOptions);
-                if (config.clusterize) {
-                    $scope.clusterMarkers = new ymaps.Clusterer(config.clusterOptions);
-                    collection.add($scope.clusterMarkers);
-                    $scope.markers = collection;
                 } else {
-                    $scope.markers = collection;
+                    $scope.markers.remove(marker);
+                }
+            };
+
+            self.addPolygon = function (coordinates, properties, options, type) {
+                var polygon;
+                switch (type) {
+                    case "Polyline":
+                        polygon = new ymaps.Polyline(coordinates, properties, options);
+                        break;
+                    default:
+                        polygon = new ymaps.Polygon(coordinates, properties, options);
+                        break;
                 }
 
-                self.map.geoObjects.add(collection);
 
-                if (config.fitMarkers) {
-                    initAutoFit(self.map, collection, ymaps);
-                }
+                $scope.markers.add(polygon);
+                return polygon;
+            };
 
-                var updatingBounds, moving;
-                $scope.$watch('center', function (newVal) {
-                    if (updatingBounds) {
-                        return;
-                    }
-                    moving = true;
-                    self.map.panTo(newVal).always(function () {
-                        moving = false;
-                    });
-                }, true);
-                $scope.$watch('zoom', function (zoom) {
-                    if (updatingBounds) {
-                        return;
-                    }
-                    self.map.setZoom(zoom, {checkZoomRange: true});
+            self.map = new ymaps.Map($element[0], {
+                center: $scope.center || [0, 0],
+                zoom: $scope.zoom || 0,
+                behaviors: config.mapBehaviors
+            });
+
+            if (angular.isObject($scope.mapOptions)) {
+                angular.forEach($scope.mapOptions, function (v, k) {
+                    self.map.options.set(k, v);
                 });
-
-                $scope.$on('$destroy', function () {
-                    if (self.map) {
-                        self.map.destroy();
-                    }
-                });
-
-                self.map.events.add('boundschange', function (event) {
-                    if (moving) {
-                        return;
-                    }
-                    //noinspection JSUnusedAssignment
-                    updatingBounds = true;
-                    $scope.$apply(function () {
-                        $scope.center = event.get('newCenter');
-                        $scope.zoom = event.get('newZoom');
-                    });
-                    updatingBounds = false;
-                });
-
             }
-        );
+
+            if (angular.isArray($scope.disableControls)) {
+                for (var i = 0; i < $scope.disableControls.length; i++) {
+                    self.map.controls.remove($scope.disableControls[i]);
+                }
+            }
+
+            if (angular.isArray($scope.enableControls)) {
+                for (var i = 0; i < $scope.enableControls.length; i++) {
+                    self.map.controls.add($scope.enableControls[i][0], $scope.enableControls[i][1] || {});
+                }
+            }
+
+            var collection = new ymaps.GeoObjectCollection({}, config.markerOptions);
+            if (config.clusterize) {
+                $scope.clusterMarkers = new ymaps.Clusterer(config.clusterOptions);
+                collection.add($scope.clusterMarkers);
+                $scope.markers = collection;
+            } else {
+                $scope.markers = collection;
+            }
+
+            self.map.geoObjects.add(collection);
+
+            if (config.fitMarkers) {
+                initAutoFit(self.map, collection, ymaps);
+            }
+
+            var updatingBounds, moving;
+            $scope.$watch('center', function (newVal) {
+                if (updatingBounds) {
+                    return;
+                }
+                moving = true;
+                self.map.panTo(newVal).always(function () {
+                    moving = false;
+                });
+            }, true);
+            $scope.$watch('zoom', function (zoom) {
+                if (updatingBounds) {
+                    return;
+                }
+                self.map.setZoom(zoom, {checkZoomRange: true});
+            });
+
+            $scope.$on('$destroy', function () {
+                if (self.map) {
+                    self.map.destroy();
+                }
+            });
+
+            self.map.events.add('boundschange', function (event) {
+                if (moving) {
+                    return;
+                }
+                //noinspection JSUnusedAssignment
+                updatingBounds = true;
+                $scope.$apply(function () {
+                    $scope.center = event.get('newCenter');
+                    $scope.zoom = event.get('newZoom');
+                });
+                updatingBounds = false;
+            });
+
+            self.registerEventEmitters = function (events) {
+                self.map.events.add(events, function (e) {
+                    $scope.$broadcast(EVENTS.source.yandex.new, {
+                        eventName: e.get('type'),
+                        event: e
+                    });
+                });
+            };
+
+        });
     }])
-    .directive('yandexMap', ['ymapsLoader', function (ymapsLoader) {
+    .directive('yandexMap', ['ymapsLoader', '$parse', 'ymapsConfig', 'EVENTS', function (ymapsLoader, $parse, ymapsConfig, EVENTS) {
         "use strict";
         return {
             restrict: 'EA',
@@ -253,10 +270,60 @@ angular.module('ymaps', [])
                 enableControls: '='
             },
             link: function ($scope, element, attrs, ctrl, transcludeFn) {
+
                 ymapsLoader.ready(function () {
                     transcludeFn(function (copy) {
                         element.append(copy);
                     });
+
+                    var events = getEventsToFollow();
+
+                    if (events.length > 0) {
+                        ctrl.registerEventEmitters(events);
+                    }
+
+                });
+
+                function getEventsToFollow() {
+                    // @return {array} List of event names normalized to Yandex format
+
+                    var allAttributes = Object.getOwnPropertyNames(attrs);
+                    var eventAttributes = [];
+                    var events = [];
+
+                    eventAttributes = allAttributes.filter(eventAtrributesFilter);
+
+                    events = eventAttributes.map(normalizeName);
+
+                    function eventAtrributesFilter(attrName) {
+                        var re = new RegExp('^' + ymapsConfig.eventPrefixInDirective + '[A-Z]'); // i.e: will match ymapB in 'ymapBaloonopen'
+                        return re.test(attrName);
+                    }
+
+                    function normalizeName(eventName) {
+                        // turn 'ymapBaloonopen' to 'baloonopen' (yandex original format for event name)
+                        return eventName.toLowerCase().substr(ymapsConfig.eventPrefixInDirective.length);
+                    }
+
+                    return events;
+                }
+
+                function findCallback(yandexOrigEventName) {
+                    // callback specified as an attribute value, we need to find attribute name and return its value
+                    var attributeNameParts = [
+                        ymapsConfig.eventPrefixInDirective,
+                        yandexOrigEventName.replace(/^[a-zA-Z]/, function upperCaseFirstChar(letter) {
+                            return letter.toUpperCase();
+                        })
+                    ];
+
+                    var attributeName = attributeNameParts.join('');
+                    return attrs[attributeName];
+                }
+
+                $scope.$on(EVENTS.source.yandex.new, function (e, data) {
+                    var callback = $parse(findCallback(data.eventName));
+                    callback($scope.$parent, {$event: data.event});
                 });
             },
             controller: 'YmapController'
