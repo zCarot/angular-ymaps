@@ -127,6 +127,10 @@ angular.module('ymaps', [])
         ymapsLoader.ready(function (ymaps) {
 
             self.addMarker = function (coordinates, properties, options) {
+                if (angular.isDefined(options.balloonLayout) && (options.balloonLayout == 'hiddenBalloonLayout')) {
+                    options.balloonLayout = ymaps.templateLayoutFactory.createClass('<div style="display: none"></div>');
+                }
+
                 var placeMark = new ymaps.Placemark(coordinates, properties, options);
 
                 if (config.clusterize) {
