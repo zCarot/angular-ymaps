@@ -106,7 +106,7 @@ angular.module('ymaps', [])
         function initAutoFit(map, collection, ymaps) {
             collection.events.add('boundschange', debounce(function () {
                 if (collection.getLength() > 0) {
-                    var maxZoomBefore = map.options.get('maxZoom');
+                    var maxZoomBefore = 23;//map.options.get('maxZoom');
                     map.options.set('maxZoom', $scope.zoom);
                     var bounds = collection.getBounds();
                     if (null !== bounds) {
