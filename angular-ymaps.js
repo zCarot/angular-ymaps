@@ -101,11 +101,11 @@ angular.module('ymaps', [])
             timeout = setTimeout(later, wait);
         };
     })
-    .controller('YmapController', ['$scope', '$element', 'ymapsLoader', 'ymapsConfig', 'debounce', '$rootScope', 'EVENTS', function ($scope, $element, ymapsLoader, config, debounce, $rootScope, EVENTS) {
+    .controller('YmapController', ['$scope', '$element', '$timeout', 'ymapsLoader', 'ymapsConfig', 'debounce', '$rootScope', 'EVENTS', function ($scope, $element, $timeout, ymapsLoader, config, debounce, $rootScope, EVENTS) {
         "use strict";
         function initAutoFit(map, collection, ymaps) {
             collection.events.add('boundschange', debounce(function () {
-                if (collection.getLength() > 0) {
+                if (collection.getLength() > 0 && $scope.checkZoom) {
                     var maxZoomBefore = 23;//map.options.get('maxZoom');
                     map.options.set('maxZoom', $scope.zoom);
                     var bounds = collection.getBounds();
@@ -227,7 +227,7 @@ angular.module('ymaps', [])
                 if (updatingBounds) {
                     return;
                 }
-                self.map.setZoom(zoom, {checkZoomRange: true});
+                self.map.setZoom(zoom, {checkZoomRange: $scope.checkZoom});
             });
 
             $scope.$on('$destroy', function () {
@@ -242,10 +242,10 @@ angular.module('ymaps', [])
                 }
                 //noinspection JSUnusedAssignment
                 updatingBounds = true;
-                $scope.$apply(function () {
+                $timeout(function () {
                     $scope.center = event.get('newCenter');
                     $scope.zoom = event.get('newZoom');
-                });
+                }, 0);
                 updatingBounds = false;
             });
 
@@ -269,6 +269,7 @@ angular.module('ymaps', [])
             scope: {
                 center: '=',
                 zoom: '=',
+                checkZoom: '=',
                 mapOptions: '=',
                 disableControls: '=',
                 enableControls: '='
@@ -352,9 +353,11 @@ angular.module('ymaps', [])
                         parseFloat($scope.coordinates[0]),
                         parseFloat($scope.coordinates[1])
                     ];
+
                     if (marker) {
                         mapCtrl.removeMarker(marker);
                     }
+
                     marker = mapCtrl.addMarker(coord, angular.extend({iconContent: $scope.index}, $scope.properties), $scope.options, $scope.clusterize);
                 }
 
